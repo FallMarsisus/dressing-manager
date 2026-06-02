@@ -303,3 +303,122 @@ html, body {
 ::-webkit-scrollbar-thumb { background: rgba(103, 80, 164, 0.15); border-radius: 100px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--md-primary); }
 * { scrollbar-width: thin; scrollbar-color: rgba(103, 80, 164, 0.2) transparent; }
+
+/* ==========================================================================
+   Responsive mobile : la sidebar devient un toast fixe en bas
+   ========================================================================== */
+@media (max-width: 900px) {
+    html, body {
+        height: auto;
+        min-height: 100vh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .app-layout {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+        min-height: 100vh;
+        height: auto;
+        padding-bottom: calc(42vh + 28px);
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        z-index: 90;
+        padding: 16px 14px 18px;
+        border-radius: 24px;
+        max-height: 42vh;
+        overflow: hidden;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+        backdrop-filter: blur(26px) saturate(150%);
+        -webkit-backdrop-filter: blur(26px) saturate(150%);
+    }
+
+    .sidebar-header {
+        margin-bottom: 10px;
+    }
+
+    .sidebar h1 {
+        font-size: 18px;
+    }
+
+    #auth-zone {
+        margin: 10px 8px 0 !important;
+    }
+
+    #auth-zone > button,
+    #user-profile {
+        width: 100%;
+    }
+
+    .search-box {
+        margin: 12px 0 10px;
+    }
+
+    .filter-scroll-area {
+        overflow-y: auto;
+        padding-right: 6px;
+        padding-bottom: 12px;
+        max-height: calc(42vh - 160px);
+    }
+
+    .sidebar-bottom-actions {
+        position: static;
+        margin-top: 12px;
+        justify-content: flex-end;
+    }
+
+    .main-content {
+        padding: 8px 0 0;
+        min-height: 100vh;
+    }
+
+    .app-layout > .surface:nth-child(2) {
+        padding: 8px 0 0;
+    }
+
+    .main-header {
+        margin: 0 8px 16px;
+        gap: 12px;
+    }
+
+    .main-content h2 {
+        font-size: 20px;
+    }
+
+    .products-large-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 14px;
+    }
+
+    .img-container,
+    .carte-vetement.add-card {
+        height: 220px;
+        min-height: 220px;
+    }
+
+    .product-info {
+        padding: 14px;
+        gap: 10px;
+    }
+
+    .fab-btn {
+        bottom: 16px;
+        right: 16px;
+        width: 60px;
+        height: 60px;
+        z-index: 95;
+    }
+
+    .modal-box {
+        max-width: none;
+        width: calc(100% - 24px);
+        margin: 12px;
+        min-height: auto;
+    }
+}
