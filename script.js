@@ -44,6 +44,8 @@ let familleFiltreActif = "";
 let saisieRecherche = "";
 let currentStep = 1; 
 let parentChoisiFormulaire = "";
+let prefillParentCategory = "";
+let prefillSubCategory = "";
 let currentUser = null; // Stocke l'utilisateur connecté
 let unsubscribeVetements = null; // Permet de couper l'écouteur Firestore à la déconnexion
 
@@ -77,6 +79,8 @@ const userProfile = document.getElementById('user-profile');
 const userPhoto = document.getElementById('user-photo');
 const userName = document.getElementById('user-name');
 const fabAdd = document.getElementById('fab-add');
+const installBtn = document.getElementById('install-btn');
+let deferredPrompt = null;
 
 // ==========================================
 // 2. GESTION DE L'AUTHENTIFICATION (NOUVEAU)
@@ -158,6 +162,15 @@ function updateStepperUI() {
     }
 }
 
+function trouverParentPourSousCategorie(sousCategorie) {
+    return Object.keys(structureCategories).find(parent => structureCategories[parent].includes(sousCategorie)) || "";
+}
+
+function resetCreationFilterPrefill() {
+    prefillParentCategory = "";
+    prefillSubCategory = "";
+}
+
 function genererSousCategoriesEtape2(parent, valeurSelectionnee = "") {
     fSubs.innerHTML = "";
     if (structureCategories[parent]) {
@@ -232,6 +245,7 @@ inlineFlowContainer.addEventListener('click', (e) => {
         subPillsExistantes.forEach(el => el.remove());
         btnToutVoir.classList.add('active');
         filtreActif = "Tous"; familleFiltreActif = "";
+        resetCreationFilterPrefill();
         filtrerEtAfficher();
         return;
     }
@@ -241,6 +255,8 @@ inlineFlowContainer.addEventListener('click', (e) => {
 
     parentBtn.classList.add('active');
     filtreActif = "Famille"; familleFiltreActif = parentName;
+    prefillParentCategory = parentName;
+    prefillSubCategory = "";
 
     let elementPrecedent = parentBtn;
     structureCategories[parentName].forEach(child => {
@@ -264,12 +280,16 @@ document.addEventListener('click', (e) => {
         document.querySelectorAll('.sidebar .chip').forEach(b => b.classList.remove('active'));
         globalBtn.classList.add('active');
         filtreActif = "Tous"; familleFiltreActif = "";
+        resetCreationFilterPrefill();
         filtrerEtAfficher();
     }
     if (childTrigger) {
         document.querySelectorAll('.sidebar-child-trigger').forEach(b => b.classList.remove('active'));
         childTrigger.classList.add('active');
         filtreActif = childTrigger.getAttribute('data-filter');
+        const parentForChild = trouverParentPourSousCategorie(filtreActif);
+        prefillParentCategory = parentForChild;
+        prefillSubCategory = filtreActif;
         filtrerEtAfficher();
     }
     if (gommetteTrigger) {
@@ -278,6 +298,7 @@ document.addEventListener('click', (e) => {
         gommetteTrigger.classList.add('active');
         filtreActif = gommetteTrigger.getAttribute('data-filter');
         familleFiltreActif = "";
+        resetCreationFilterPrefill();
         filtrerEtAfficher();
     }
 });
@@ -302,6 +323,18 @@ function compresserVersBase64(file) {
     });
 }
 
+function creerCarteAjoutDansListe() {
+    const addCard = document.createElement('div');
+    addCard.className = 'carte-vetement add-card';
+    addCard.innerHTML = `
+        <div class="add-card-body">
+            <span class="icon">add</span>
+        </div>
+    `;
+    addCard.addEventListener('click', () => fabAdd.click());
+    return addCard;
+}
+
 function filtrerEtAfficher() {
     listTarget.innerHTML = "";
     if (!currentUser) {
@@ -319,7 +352,14 @@ function filtrerEtAfficher() {
     });
     itemsCount.textContent = `${resultat.length} pièce${resultat.length > 1 ? 's' : ''}`;
 
-    if (resultat.length === 0) { listTarget.innerHTML = '<p class="status-text">Aucun élément.</p>'; return; }
+    if (resultat.length === 0) {
+        const emptyMessage = document.createElement('p');
+        emptyMessage.className = 'status-text';
+        emptyMessage.textContent = 'Aucun élément.';
+        listTarget.appendChild(emptyMessage);
+        listTarget.appendChild(creerCarteAjoutDansListe());
+        return;
+    }
     resultat.forEach(v => {
         let badgesHTML = "";
         if (v.catégorie) v.catégorie.forEach(c => badgesHTML += `<span class="chip"><span class="dot cat"></span>${c}</span>`);
@@ -335,6 +375,7 @@ function filtrerEtAfficher() {
         carte.querySelector('.delete-btn').addEventListener('click', () => supprimerVetement(v.id));
         listTarget.appendChild(carte);
     });
+    listTarget.appendChild(creerCarteAjoutDansListe());
 }
 
 searchInput.addEventListener('input', (e) => { saisieRecherche = e.target.value; filtrerEtAfficher(); });
@@ -343,9 +384,25 @@ searchInput.addEventListener('input', (e) => { saisieRecherche = e.target.value;
 fabAdd.addEventListener('click', () => {
     modalTitle.textContent = "Nouvelle Pièce"; document.getElementById('edit-id').value = "";
     form.reset(); giantChoices.forEach(b => b.classList.remove('selected'));
-    currentStep = 1; 
-    updateStepperUI();
+    parentChoisiFormulaire = "";
     fileNameDisplayModal.textContent = "Prendre ou choisir une image";
+
+    if (prefillSubCategory) {
+        const parent = trouverParentPourSousCategorie(prefillSubCategory);
+        parentChoisiFormulaire = parent;
+        giantChoices.forEach(b => { if (b.getAttribute('data-value') === parent) b.classList.add('selected'); });
+        genererSousCategoriesEtape2(parent, prefillSubCategory);
+        currentStep = 3;
+    } else if (prefillParentCategory) {
+        parentChoisiFormulaire = prefillParentCategory;
+        giantChoices.forEach(b => { if (b.getAttribute('data-value') === prefillParentCategory) b.classList.add('selected'); });
+        genererSousCategoriesEtape2(prefillParentCategory);
+        currentStep = 2;
+    } else {
+        currentStep = 1;
+    }
+
+    updateStepperUI();
     modal.style.display = 'flex';
 });
 
@@ -419,6 +476,37 @@ form.addEventListener('submit', async (e) => {
         btnSubmit.disabled = false; 
     }
 });
+
+// Installation PWA
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'flex';
+});
+
+installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+        installBtn.style.display = 'none';
+        deferredPrompt = null;
+    }
+});
+
+window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+    deferredPrompt = null;
+    console.log('Dressing Virtuel installé');
+});
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(() => console.log('Service worker enregistré'))
+            .catch((err) => console.error('Erreur enregistrement SW:', err));
+    });
+}
 
 // Toggle Thème Clair/Sombre
 themeBtn.addEventListener('click', () => {

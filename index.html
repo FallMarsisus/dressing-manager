@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dressing Virtuel</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6750A4">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -15,9 +17,6 @@
         <aside class="surface sidebar">
             <div class="sidebar-header">
                 <h1>Dressing Virtuel</h1>
-                <button id="theme-toggle" class="btn-theme" title="Changer le thème">
-                    <span class="icon" id="theme-icon">dark_mode</span>
-                </button>
 
                 <div id="auth-zone" style="margin: 16px 8px;">
                     <button id="btn-login" class="chip"
@@ -55,6 +54,14 @@
 
                 <h2>Tags</h2>
                 <div class="filter-group" id="filter-gommettes-target"></div>
+            </div>
+            <div class="sidebar-bottom-actions">
+                <button id="theme-toggle" class="btn-theme" title="Changer le thème">
+                    <span class="icon" id="theme-icon">dark_mode</span>
+                </button>
+                <button id="install-btn" class="btn-theme" title="Installer l'application" style="display:none;">
+                    <span class="icon">download</span>
+                </button>
             </div>
         </aside>
 

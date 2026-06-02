@@ -1,0 +1,17 @@
+{
+  "name": "Dressing Virtuel",
+  "short_name": "Dressing",
+  "description": "Gestionnaire de dressing virtuel installable.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#F3F1F6",
+  "theme_color": "#6750A4",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
