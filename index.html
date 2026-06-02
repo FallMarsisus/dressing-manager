@@ -43,22 +43,43 @@
                 </div>
             </div>
 
-            <input type="text" id="search-input" class="search-box" placeholder="Rechercher une pièce...">
+          <div class="sidebar-nav" style="margin: 0 8px 16px 8px;">
+                <button id="nav-dressing" class="chip active-global" style="width: 100%; justify-content: center; margin-bottom: 8px;">
+                    <span class="icon">checkroom</span> Mon Dressing
+                </button>
+                <button id="nav-outfit" class="chip" style="width: 100%; justify-content: center;">
+                    <span class="icon">accessibility_new</span> Créateur de tenue
+                </button>
+            </div>
 
-            <div class="filter-scroll-area">
-                <div style="margin-bottom: 16px;">
-                    <button class="chip active" id="btn-tout-voir" data-filter="Tous"
-                        style="width: 100%; justify-content: center;">
-                        <span class="icon">dashboard</span> Tout voir
+            <div id="dressing-filters" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+                <input type="text" id="search-input" class="search-box" placeholder="Rechercher une pièce...">
+                <div class="filter-scroll-area">
+                    <div style="margin-bottom: 16px;">
+                        <button class="chip active" id="btn-tout-voir" data-filter="Tous"
+                            style="width: 100%; justify-content: center;">
+                            <span class="icon">dashboard</span> Tout voir
+                        </button>
+                    </div>
+
+                    <h2>Collections</h2>
+                    <div class="layout-inline-flow" id="sidebar-pills-target"></div>
+
+                    <h2>Tags</h2>
+                    <div class="filter-group" id="filter-gommettes-target"></div>
+                </div>
+            </div>
+
+            <div id="outfit-sidebar-tools" style="display: none; flex-direction: column; flex: 1; overflow: hidden; margin-top: 8px;">
+                <h2 style="margin: 0 8px 12px 8px;">Mes Tenues</h2>
+                <div class="outfit-list-v2" id="outfit-selector-list" style="padding: 0 8px;"></div>
+                <div style="padding: 0 8px; margin-top: 16px;">
+                    <button id="btn-add-outfit-placeholder" class="chip" style="justify-content: center; width: 100%;">
+                        <span class="icon">add</span> Nouvelle tenue
                     </button>
                 </div>
-
-                <h2>Collections</h2>
-                <div class="layout-inline-flow" id="sidebar-pills-target"></div>
-
-                <h2>Tags</h2>
-                <div class="filter-group" id="filter-gommettes-target"></div>
             </div>
+
             <div class="sidebar-bottom-actions">
                 <button id="theme-toggle" class="btn-theme" title="Changer le thème">
                     <span class="icon" id="theme-icon">dark_mode</span>
@@ -70,17 +91,89 @@
         </aside>
 
         <main class="surface main-content">
-            <div class="main-header">
-                <h2>Vêtements</h2>
-                <span id="items-count" class="count-badge">0 pièce</span>
+            <div id="view-dressing" class="view-section active">
+                <div class="main-header">
+                    <h2>Vêtements</h2>
+                    <span id="items-count" class="count-badge">0 pièce</span>
+                </div>
+
+                <div class="list-scroll">
+                    <div class="products-large-grid" id="list-target">
+                        <p class="status-text">Chargement...</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="list-scroll">
-                <div class="products-large-grid" id="list-target">
-                    <p class="status-text">Chargement...</p>
+            <div id="view-outfit" class="view-section">
+                <div class="main-header">
+                    <h2>Créateur de tenue</h2>
+                    <div style="flex: 1;"></div>
+                    <button id="btn-save-outfit" class="chip" style="background: var(--md-primary); color: var(--md-on-primary); border: none; font-weight: 500; padding: 10px 16px;">
+                        <span class="icon">save</span> Sauvegarder
+                    </button>
+                </div>
+                <div class="outfit-workspace">
+
+                    <div class="canvas-container" id="outfit-canvas">
+                        <div class="silhouette"></div>
+                        <p class="canvas-hint" id="canvas-hint">Glisse-dépose un vêtement ici pour l'ajouter</p>
+                    </div>
+
+                    <div class="outfit-drawers-right" id="outfit-drawers-right">
+                        
+                        <div class="horizontal-drawer collapsed" data-category="Hauts" id="drawer-Hauts">
+                            <button type="button" class="drawer-handle">
+                                <span class="icon">apparel</span>
+                                <span class="handle-label">Hauts</span>
+                                <span class="icon arrow">chevron_left</span>
+                            </button>
+                            <div class="drawer-body">
+                                <h4>Hauts</h4>
+                                <div class="outfit-items-list" id="list-outfit-hauts"></div>
+                            </div>
+                        </div>
+
+                        <div class="horizontal-drawer collapsed" data-category="Bas" id="drawer-Bas">
+                            <button type="button" class="drawer-handle">
+                                <span class="icon">line_style</span>
+                                <span class="handle-label">Bas</span>
+                                <span class="icon arrow">chevron_left</span>
+                            </button>
+                            <div class="drawer-body">
+                                <h4>Bas</h4>
+                                <div class="outfit-items-list" id="list-outfit-bas"></div>
+                            </div>
+                        </div>
+
+                        <div class="horizontal-drawer collapsed" data-category="Chaussures" id="drawer-Chaussures">
+                            <button type="button" class="drawer-handle">
+                                <span class="icon">footprint</span>
+                                <span class="handle-label">Chaussures</span>
+                                <span class="icon arrow">chevron_left</span>
+                            </button>
+                            <div class="drawer-body">
+                                <h4>Chaussures</h4>
+                                <div class="outfit-items-list" id="list-outfit-chaussures"></div>
+                            </div>
+                        </div>
+
+                        <div class="horizontal-drawer collapsed" data-category="Autre" id="drawer-Autre">
+                            <button type="button" class="drawer-handle">
+                                <span class="icon">pending</span>
+                                <span class="handle-label">Autres</span>
+                                <span class="icon arrow">chevron_left</span>
+                            </button>
+                            <div class="drawer-body">
+                                <h4>Autres</h4>
+                                <div class="outfit-items-list" id="list-outfit-autre"></div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </main>
+        
     </div>
 
     <div id="sidebar-backdrop" class="sidebar-backdrop" aria-hidden="true"></div>

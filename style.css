@@ -622,3 +622,318 @@ body.sidebar-open .sidebar-backdrop {
         min-height: auto;
     }
 }
+
+/* ==========================================================================
+   Vues Globales
+   ========================================================================== */
+.view-section { display: none; flex-direction: column; height: 100%; flex: 1; }
+.view-section.active { display: flex; }
+
+/* ==========================================================================
+   Créateur de Tenues (Canevas Unique & Tiroirs Flottants)
+   ========================================================================== */
+.outfit-workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    padding: 0 16px 16px;
+    min-height: 0;
+    position: relative;
+}
+
+/* Styles pour les onglets de tenues (désormais dans la sidebar) */
+.outfit-list-v2 { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
+.outfit-tab {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: var(--md-sub-grised); border: 1px solid transparent;
+    border-radius: 14px; color: var(--md-on-surface); cursor: pointer;
+    text-align: left; font-size: 14px; font-weight: 500; transition: all 0.2s ease;
+}
+.outfit-tab:hover { background: rgba(103, 80, 164, 0.08); }
+.outfit-tab.active { background: var(--md-primary-container); color: var(--md-on-primary-container); border-color: var(--md-primary); }
+
+/* --- Le Canevas (prend toute la place centrale) --- */
+.canvas-container {
+    flex: 1; background: var(--md-surface-card);
+    border: 2px dashed var(--md-outline-variant); border-radius: 24px;
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    /* Marge droite pour que la silhouette reste centrée visuellement à côté des poignées fermées */
+    padding-right: 80px; 
+    touch-action: none;
+}
+
+.silhouette {
+    width: 100%; 
+    height: 80%; /* Prend beaucoup plus de place sur le canevas */
+    max-height: 500px;
+    
+    /* Remplacement par l'icône "boy" officielle de Material Symbols */
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="%23cac4d0"><path d="M440-120v-360H320v-160q0-33 23.5-56.5T400-720h160q33 0 56.5 23.5T640-640v160H520v360h-80Zm40-640q-33 0-56.5-23.5T400-840q0-33 23.5-56.5T480-920q33 0 56.5 23.5T560-840q0 33-23.5 56.5T480-760Z"/></svg>') no-repeat center center;
+    
+    background-size: contain; 
+    opacity: 0.15; /* Un peu plus discret en fond */
+    pointer-events: none; 
+}
+
+
+.canvas-hint {
+    position: absolute; bottom: 24px; color: var(--md-on-surface-variant);
+    font-size: 14px; background: var(--md-surface); padding: 8px 16px;
+    border-radius: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); pointer-events: none;
+}
+
+/* Visual feedback lors du survol de Drag */
+.canvas-container.drag-over {
+    border-color: var(--md-primary); background: rgba(103, 80, 164, 0.04); box-shadow: inset 0 0 20px rgba(103, 80, 164, 0.1);
+}
+
+/* --- Les Tiroirs Flottants (Collés au bord absolu de l'écran) --- */
+.outfit-drawers-right {
+    position: fixed; /* Sort du flux normal pour s'accrocher à l'écran */
+    top: 120px;      /* Laisse respirer le haut de l'application */
+    bottom: 60px;    /* Laisse respirer le bas */
+    right: 0;        /* 100% collé au bord droit du navigateur */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    align-items: flex-end; 
+    z-index: 9999; /* Par-dessus absolument toute l'interface */
+    pointer-events: none; /* Permet de cliquer à travers les espaces vides */
+}
+
+/* Structure d'un tiroir individuel */
+.horizontal-drawer {
+    pointer-events: auto; /* Réactive le clic sur le tiroir lui-même */
+    display: flex;
+    height: 22%; /* Répartition automatique sur la hauteur disponible */
+    min-height: 120px;
+    border: 1px solid var(--md-outline-variant);
+    /* Bords carrés à droite (contre l'écran), arrondis à gauche */
+    border-radius: 24px 0 0 24px; 
+    border-right: none;
+    overflow: hidden;
+    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    flex-shrink: 0;
+    box-shadow: -8px 8px 24px rgba(0,0,0,0.12); /* Ombre portée vers la gauche */
+}
+
+/* État fermé : seule la poignée dépasse de l'écran */
+.horizontal-drawer.collapsed {
+    width: 64px;
+    background: var(--md-sub-grised);
+    box-shadow: -4px 4px 12px rgba(0,0,0,0.05);
+}
+
+/* État ouvert : le tiroir se déploie vers la gauche par-dessus le canevas */
+.horizontal-drawer:not(.collapsed) {
+    width: 400px;
+    border-color: var(--md-primary);
+    background: var(--md-surface-card);
+}
+
+/* La poignée du tiroir (placée à gauche) */
+.drawer-handle {
+    width: 64px; height: 100%; background: transparent; border: none;
+    color: var(--md-on-surface-variant); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+    border-right: 1px solid transparent; flex-shrink: 0; user-select: none; padding: 8px 0;
+}
+.horizontal-drawer:not(.collapsed) .drawer-handle {
+    border-right: 1px solid var(--md-outline-variant); background: var(--md-sub-grised); color: var(--md-primary);
+}
+
+.handle-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    writing-mode: vertical-lr; transform: rotate(180deg); letter-spacing: 0.5px;
+}
+
+.drawer-handle .arrow { font-size: 16px; transition: transform 0.3s ease; }
+.horizontal-drawer:not(.collapsed) .drawer-handle .arrow { transform: rotate(180deg); }
+
+/* Corps intérieur du tiroir */
+.drawer-body {
+    flex: 1; display: flex; flex-direction: column; padding: 14px;
+    overflow: hidden; min-width: 330px; 
+}
+.drawer-body h4 { margin: 0 0 8px 0; font-size: 13px; color: var(--md-primary); text-transform: uppercase; }
+.horizontal-drawer .outfit-items-list {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; overflow-y: auto; flex: 1; padding-right: 4px;
+}
+
+/* Nouvelles miniatures de sélection (Image + Nom discret) */
+.outfit-item-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: grab;
+    border: 1px solid var(--md-outline-variant);
+    transition: transform 0.2s, border-color 0.2s;
+    background: var(--md-sub-grised);
+}
+.outfit-item-wrapper:hover {
+    transform: scale(1.05);
+    border-color: var(--md-primary);
+    z-index: 2;
+}
+.outfit-item-wrapper:active { cursor: grabbing; }
+
+.outfit-item-source {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none; /* Laisse le parent gérer le glisser-déposer */
+}
+/* Le petit label dans les tiroirs (Masqué par défaut, visible au Hover) */
+.outfit-item-name {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--md-on-surface);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    padding: 6px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    
+    /* Animation de masque par défaut */
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+}
+[data-theme="dark"] .outfit-item-name {
+    background: rgba(28, 26, 32, 0.9);
+    color: #E6E1E9;
+}
+
+/* Apparition du nom dans le tiroir au survol */
+.outfit-item-wrapper:hover .outfit-item-name {
+    opacity: 0;
+    transform: translateY(0);
+}
+
+/* Étiquette du nom sur le canevas (Verticale, collée à la ligne, alignée en bas) */
+.canvas-item-name {
+    position: absolute;
+    left: -14px; /* Presque collé à la ligne pointillée */
+    bottom: 2px; /* Aligné sur le bas de la box */
+    transform: rotate(180deg); /* Garde la lecture de bas en haut */
+    writing-mode: vertical-lr;
+    
+    color: var(--md-primary); 
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 100; 
+}
+
+/* Afficher l'étiquette UNIQUEMENT quand l'élément est actif (au clic) */
+.canvas-item.active-item .canvas-item-name {
+    opacity: 1;
+}
+
+/* Afficher l'étiquette sur le canevas quand l'élément est survolé ou actif */
+
+.canvas-item.active-item .canvas-item-name {
+    opacity: 1;
+}
+
+/* Le vêtement une fois sur le canevas */
+.canvas-item { position: absolute; cursor: grab; user-select: none; touch-action: none; box-sizing: border-box; z-index: 1; }
+
+.canvas-item img { 
+    width: 100%; 
+    height: 100%; 
+    pointer-events: none; 
+    border-radius: 8px; 
+    object-fit: contain; /* NOUVEAU : Empêche toute déformation de l'image */
+}
+
+.canvas-item.active-item { outline: 2px dashed var(--md-primary); }
+/* Poignées d'interaction sur les items du canevas */
+.delete-handle, .resize-handle, .rotate-handle {
+    position: absolute; width: 28px; height: 28px; border-radius: 50%;
+    display: none; align-items: center; justify-content: center;
+    color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 10;
+}
+.canvas-item.active-item .delete-handle, .canvas-item.active-item .resize-handle, .canvas-item.active-item .rotate-handle { display: flex; }
+.delete-handle { top: -14px; right: -14px; background: var(--md-error); cursor: pointer; }
+.delete-handle .icon { font-size: 18px; }
+.resize-handle { bottom: -14px; right: -14px; background: var(--md-primary); cursor: nwse-resize; }
+.resize-handle .icon { font-size: 16px; }
+.rotate-handle { top: -35px; left: 50%; transform: translateX(-50%); background: var(--md-primary); cursor: grab; }
+.rotate-handle .icon { font-size: 18px; }
+.rotate-handle { touch-action: none; }
+.canvas-item.active-item::before { content: ''; position: absolute; top: -11px; left: 50%; width: 2px; height: 11px; background: var(--md-primary); transform: translateX(-50%); }
+
+/* Animation de pulsation pour le bouton save non sauvegardé */
+@keyframes saveButtonPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(179, 38, 30, 0.7); }
+    50% { box-shadow: 0 0 0 8px rgba(179, 38, 30, 0); }
+}
+
+#btn-save-outfit.unsaved {
+    background: #B3261E !important;
+    color: #FFFFFF !important;
+    animation: saveButtonPulse 2s infinite;
+}
+
+/* NOUVEAU : Input de nom de tenue stylisé */
+.outfit-name-input {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    outline: none;
+    border-bottom: 2px dashed transparent;
+    transition: border-color 0.2s, background-color 0.2s;
+    padding: 6px 12px;
+    margin-left: -12px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 400px;
+}
+.outfit-name-input:focus, .outfit-name-input:hover {
+    border-bottom-color: var(--md-outline-variant);
+    background: var(--md-sub-grised);
+}
+
+/* Responsivité Mobile (Reste en barre horizontale défilante en bas) */
+@media (max-width: 900px) {
+    .outfit-workspace { padding: 0 12px 12px; flex-direction: column; }
+    .canvas-container { padding-right: 0; min-height: 400px; flex: none; height: 400px; }
+    
+    .outfit-drawers-right {
+        position: relative; top: auto; right: auto; bottom: auto;
+        width: 100%; height: 180px; flex-direction: row; align-items: flex-start; z-index: 10; pointer-events: auto;
+    }
+    .horizontal-drawer { height: 100% !important; flex-direction: column; border-radius: 20px; border-right: 1px solid var(--md-outline-variant); }
+    .horizontal-drawer.collapsed { width: 72px; height: 100% !important; }
+    .horizontal-drawer:not(.collapsed) { width: 260px; height: 100% !important; }
+    .drawer-handle { width: 100%; height: 48px; flex-direction: row; border-right: none !important; border-bottom: 1px solid transparent; }
+    .horizontal-drawer:not(.collapsed) .drawer-handle { border-bottom: 1px solid var(--md-outline-variant); }
+    .handle-label { writing-mode: horizontal-tb; transform: none; }
+    .drawer-handle .arrow { transform: rotate(-90deg); }
+    .horizontal-drawer:not(.collapsed) .drawer-handle .arrow { transform: rotate(90deg); }
+    .drawer-body { min-width: 0; }
+    .horizontal-drawer .outfit-items-list { grid-template-columns: repeat(2, 1fr); }
+}

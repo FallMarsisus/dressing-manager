@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 // Importation des modules d'authentification
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
@@ -120,23 +120,26 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ==========================================
-// 2. GESTION DE L'AUTHENTIFICATION (NOUVEAU)
+// 2. GESTION DE L'AUTHENTIFICATION & CHARGEMENT
 // ==========================================
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
-        // Mettre à jour l'interface utilisateur
         btnLogin.style.display = 'none';
         userProfile.style.display = 'flex';
         userPhoto.src = user.photoURL || "";
         userName.textContent = user.displayName || "Profil";
-        fabAdd.style.display = 'flex';
+        
+        if(navDressing.classList.contains('active-global')) {
+            fabAdd.style.display = 'flex';
+        }
 
-        // Lancer l'écoute en temps réel de ses vêtements personnalisés
         ecouterDressingUtilisateur(user.uid);
+        
+        // NOUVEAU : On charge la collection "tenues" lors de la connexion
+        await chargerTenuesFirebase(user.uid);
     } else {
         currentUser = null;
-        // Nettoyage de l'interface et déconnexion
         btnLogin.style.display = 'flex';
         userProfile.style.display = 'none';
         fabAdd.style.display = 'none';
@@ -149,6 +152,15 @@ onAuthStateChanged(auth, (user) => {
         }
         listTarget.innerHTML = '<p class="status-text">Veuillez vous connecter pour voir votre dressing.</p>';
         itemsCount.textContent = `0 pièce`;
+
+        // Réinitialisation locale des tenues
+        outfitsData = {};
+        const defaultId = "local_default";
+        outfitsData[defaultId] = { name: "Tenue du jour", items: [] };
+        currentOutfitId = defaultId;
+        if(outfitNameInput) outfitNameInput.value = outfitsData[currentOutfitId].name;
+        renderOutfitSelector();
+        if(navOutfit.classList.contains('active-global')) chargerTenueDuStock(currentOutfitId);
     }
 });
 
@@ -160,7 +172,6 @@ btnLogout.addEventListener('click', () => {
     signOut(auth).catch(err => console.error("Erreur de déconnexion:", err));
 });
 
-// Synchro BDD en temps réel isolée par utilisateur
 function ecouterDressingUtilisateur(uid) {
     if (unsubscribeVetements) unsubscribeVetements();
 
@@ -174,6 +185,7 @@ function ecouterDressingUtilisateur(uid) {
             if (data.dummy !== true) datasetVetements.push({ id: doc.id, ...data }); 
         });
         filtrerEtAfficher();
+        if(navOutfit.classList.contains('active-global')) genererGardeRobeCreateur();
     }, (error) => {
         console.error("Erreur de lecture Firestore (vérifie tes règles de sécurité) :", error);
     });
@@ -358,8 +370,14 @@ function compresserVersBase64(file) {
                 let w = img.width, h = img.height;
                 if (w > h && w > 800) { h *= 800 / w; w = 800; } else if (h > 800) { w *= 800 / h; h = 800; }
                 canvas.width = w; canvas.height = h;
-                const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
+                const ctx = canvas.getContext('2d'); 
+                
+                // On dessine l'image en conservant sa couche alpha (transparence)
+                ctx.drawImage(img, 0, 0, w, h);
+                
+                // NOUVEAU : On utilise 'image/webp' au lieu de jpeg. 
+                // Ça gère la transparence et compresse super bien !
+                resolve(canvas.toDataURL('image/webp', 0.85));
             };
         };
     });
@@ -368,11 +386,7 @@ function compresserVersBase64(file) {
 function creerCarteAjoutDansListe() {
     const addCard = document.createElement('div');
     addCard.className = 'carte-vetement add-card';
-    addCard.innerHTML = `
-        <div class="add-card-body">
-            <span class="icon">add</span>
-        </div>
-    `;
+    addCard.innerHTML = `<div class="add-card-body"><span class="icon">add</span></div>`;
     addCard.addEventListener('click', () => fabAdd.click());
     return addCard;
 }
@@ -422,7 +436,6 @@ function filtrerEtAfficher() {
 
 searchInput.addEventListener('input', (e) => { saisieRecherche = e.target.value; filtrerEtAfficher(); });
 
-// Déclenchement de la modale d'ajout
 fabAdd.addEventListener('click', () => {
     closeSidebarOnMobile();
     modalTitle.textContent = "Nouvelle Pièce"; document.getElementById('edit-id').value = "";
@@ -552,8 +565,491 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Toggle Thème Clair/Sombre
 themeBtn.addEventListener('click', () => {
     if (document.body.getAttribute('data-theme') === 'dark') { document.body.removeAttribute('data-theme'); themeIcon.innerText = 'dark_mode'; } 
     else { document.body.setAttribute('data-theme', 'dark'); themeIcon.innerText = 'light_mode'; }
 });
+
+// ==========================================================================
+// 7. CRÉATEUR DE TENUES & SAUVEGARDE FIREBASE
+// ==========================================================================
+const navDressing = document.getElementById('nav-dressing');
+const navOutfit = document.getElementById('nav-outfit');
+const viewDressing = document.getElementById('view-dressing');
+const viewOutfit = document.getElementById('view-outfit');
+const outfitCanvas = document.getElementById('outfit-canvas');
+const canvasHint = document.getElementById('canvas-hint');
+const dressingFilters = document.getElementById('dressing-filters');
+const outfitSidebarTools = document.getElementById('outfit-sidebar-tools');
+
+// Références du nouveau header d'édition
+const outfitNameInput = document.getElementById('outfit-name-input');
+const btnSaveOutfit = document.getElementById('btn-save-outfit');
+
+// Moteur local des tenues
+let outfitsData = {};
+let currentOutfitId = null;
+let activeCanvasItem = null;
+let outfitDirty = false; // Flag pour tracer les modifications non sauvegardées
+
+// Fonction pour mettre à jour l'état du bouton Save
+function updateSaveButtonState() {
+    if (outfitDirty) {
+        btnSaveOutfit?.classList.add('unsaved');
+    } else {
+        btnSaveOutfit?.classList.remove('unsaved');
+    }
+}
+
+// Chargement initial des tenues depuis Firebase
+async function chargerTenuesFirebase(uid) {
+    try {
+        const tenuesSnapshot = await getDocs(collection(db, "users", uid, "tenues"));
+        let aCharge = false;
+        outfitsData = {};
+        
+        tenuesSnapshot.forEach(doc => {
+            outfitsData[doc.id] = doc.data();
+            aCharge = true;
+        });
+        
+        // S'il n'y a encore aucune tenue dans Firebase, on en prépare une vide
+        if (!aCharge) {
+            const defaultId = "local_" + Date.now();
+            outfitsData[defaultId] = { name: "Ma première tenue", items: [] };
+            currentOutfitId = defaultId;
+        } else {
+            // Sinon on sélectionne la première par défaut
+            currentOutfitId = Object.keys(outfitsData)[0];
+        }
+        
+        if (outfitNameInput) outfitNameInput.value = outfitsData[currentOutfitId].name;
+        renderOutfitSelector();
+        
+        if(navOutfit.classList.contains('active-global')) {
+            chargerTenueDuStock(currentOutfitId);
+        }
+    } catch(err) {
+        console.error("Erreur chargement tenues Firebase :", err);
+    }
+}
+
+// Synchronisation de l'input vers les données locales
+if(outfitNameInput) {
+    outfitNameInput.addEventListener('input', (e) => {
+        if(currentOutfitId && outfitsData[currentOutfitId]) {
+            outfitsData[currentOutfitId].name = e.target.value || "Nouvelle Tenue";
+            outfitDirty = true;
+            updateSaveButtonState();
+            renderOutfitSelector();
+        }
+    });
+}
+
+// Warning avant de quitter la page si des modifications non sauvegardées
+window.addEventListener('beforeunload', (e) => {
+    if (outfitDirty && navOutfit.classList.contains('active-global')) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+    }
+});
+
+// Action du nouveau bouton Sauvegarder
+if(btnSaveOutfit) {
+    btnSaveOutfit.addEventListener('click', async () => {
+        if(!currentUser) {
+            alert("Connecte-toi pour sauvegarder tes tenues.");
+            return;
+        }
+
+        // On s'assure d'avoir la dernière position des éléments du canevas
+        sauvegarderTenueActuelle(); 
+        
+        const originalText = btnSaveOutfit.innerHTML;
+        btnSaveOutfit.innerHTML = `<span class="icon">hourglass_empty</span>...`;
+        btnSaveOutfit.disabled = true;
+        
+        try {
+            const payload = outfitsData[currentOutfitId];
+            
+            // setDoc remplace/crée le document, idéal pour ce comportement
+            await setDoc(doc(db, "users", currentUser.uid, "tenues", currentOutfitId), payload);
+            
+            outfitDirty = false; // Réinitialiser le flag après sauvegarde
+            updateSaveButtonState();
+            
+            // Retour visuel de succès
+            btnSaveOutfit.innerHTML = `<span class="icon">check</span> Enregistré`;
+            btnSaveOutfit.style.background = "#388e3c"; 
+            
+            setTimeout(() => {
+                btnSaveOutfit.innerHTML = `<span class="icon">save</span> Sauvegarder`;
+                btnSaveOutfit.style.background = "var(--md-primary)";
+                btnSaveOutfit.disabled = false;
+            }, 2000);
+            
+        } catch (err) {
+            console.error("Erreur lors de la sauvegarde de la tenue :", err);
+            alert("Erreur de sauvegarde.");
+            btnSaveOutfit.innerHTML = originalText;
+            btnSaveOutfit.disabled = false;
+        }
+    });
+}
+
+// Écouteurs de navigation
+navDressing.addEventListener('click', () => {
+    sauvegarderTenueActuelle();
+    navDressing.classList.add('active-global');
+    navOutfit.classList.remove('active-global');
+    viewDressing.classList.add('active');
+    viewOutfit.classList.remove('active');
+    
+    dressingFilters.style.display = 'flex';
+    outfitSidebarTools.style.display = 'none';
+    fabAdd.style.display = currentUser ? 'flex' : 'none';
+    
+    if (isMobileLayout()) closeSidebarOnMobile();
+});
+
+navOutfit.addEventListener('click', () => {
+    navOutfit.classList.add('active-global');
+    navDressing.classList.remove('active-global');
+    viewOutfit.classList.add('active');
+    viewDressing.classList.remove('active');
+    
+    dressingFilters.style.display = 'none';
+    outfitSidebarTools.style.display = 'flex';
+    fabAdd.style.display = 'none';
+
+    genererGardeRobeCreateur();
+    if (isMobileLayout()) closeSidebarOnMobile();
+});
+
+function initialiserLogiqueArchitectureOutfits() {
+    const drawers = document.querySelectorAll('.horizontal-drawer');
+    const btnAddOutfit = document.getElementById('btn-add-outfit-placeholder');
+
+    drawers.forEach(drawer => {
+        const handle = drawer.querySelector('.drawer-handle');
+        if (handle.dataset.listenerAttached) return;
+
+        handle.addEventListener('click', () => {
+            const isCollapsed = drawer.classList.contains('collapsed');
+            drawers.forEach(d => d.classList.add('collapsed'));
+            if (isCollapsed) drawer.classList.remove('collapsed');
+            else drawer.classList.add('collapsed');
+        });
+        handle.dataset.listenerAttached = "true";
+    });
+
+    if (!outfitCanvas.dataset.dragListenersAttached) {
+        outfitCanvas.addEventListener('dragover', (e) => { e.preventDefault(); outfitCanvas.classList.add('drag-over'); });
+        outfitCanvas.addEventListener('dragleave', () => { outfitCanvas.classList.remove('drag-over'); });
+        outfitCanvas.addEventListener('drop', (e) => {
+            e.preventDefault(); outfitCanvas.classList.remove('drag-over'); canvasHint.style.display = 'none';
+            const src = e.dataTransfer.getData('text/plain');
+            if (!src) return;
+            const rect = outfitCanvas.getBoundingClientRect();
+            ajouterElementSurCanvas(src, e.clientX - rect.left, e.clientY - rect.top);
+            outfitDirty = true;
+            updateSaveButtonState();
+            sauvegarderTenueActuelle();
+        });
+        outfitCanvas.dataset.dragListenersAttached = "true";
+    }
+
+    if (btnAddOutfit && !btnAddOutfit.dataset.listenerAttached) {
+        btnAddOutfit.addEventListener('click', () => {
+            sauvegarderTenueActuelle();
+            
+            // Création avec un ID local temporaire
+            const newId = "local_" + Date.now();
+            outfitsData[newId] = { name: `Nouvelle Tenue`, items: [] };
+            
+            renderOutfitSelector();
+            switchOutfit(newId);
+            
+            if(outfitNameInput) {
+                outfitNameInput.focus();
+                outfitNameInput.select();
+            }
+        });
+        btnAddOutfit.dataset.listenerAttached = "true";
+    }
+}
+
+function renderOutfitSelector() {
+    const listContainer = document.getElementById('outfit-selector-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    Object.keys(outfitsData).forEach(id => {
+        const outfit = outfitsData[id];
+        const btn = document.createElement('button');
+        btn.className = `outfit-tab ${id === currentOutfitId ? 'active' : ''}`;
+        btn.innerHTML = `<span class="icon">style</span><span class="label">${outfit.name}</span>`;
+        btn.addEventListener('click', () => switchOutfit(id));
+        listContainer.appendChild(btn);
+    });
+}
+
+function switchOutfit(id) {
+    sauvegarderTenueActuelle();
+    currentOutfitId = id;
+    if(outfitNameInput) outfitNameInput.value = outfitsData[id].name;
+    renderOutfitSelector();
+    chargerTenueDuStock(id);
+}
+// =======================================================
+// Mise à jour : Architecture par ID & Noms discrets
+// =======================================================
+
+function sauvegarderTenueActuelle() {
+    if (!currentOutfitId || !outfitsData[currentOutfitId]) return;
+    const items = [];
+    document.querySelectorAll('#outfit-canvas .canvas-item').forEach(el => {
+        items.push({
+            id: el.dataset.id, // On sauvegarde UNIQUEMENT l'ID
+            left: el.style.left,
+            top: el.style.top,
+            width: el.style.width,
+            height: el.style.height,
+            rotation: el.dataset.rotation || 0,
+            zIndex: parseInt(el.style.zIndex) || parseInt(window.getComputedStyle(el).zIndex) || 0
+        });
+    });
+    outfitsData[currentOutfitId].items = items;
+}
+
+function chargerTenueDuStock(idOutfit) {
+    document.querySelectorAll('#outfit-canvas .canvas-item').forEach(el => el.remove());
+    const outfit = outfitsData[idOutfit];
+    if (!outfit) return;
+
+    if (outfit.items.length > 0) {
+        canvasHint.style.display = 'none';
+        outfit.items.forEach(item => {
+            const vetement = datasetVetements.find(v => v.id === item.id);
+            const src = vetement ? vetement.ImageURL : item.src; 
+            
+            // On récupère le nom depuis la base de données
+            const nomItem = vetement ? (vetement.nom || "Sans nom") : "Pièce introuvable"; 
+            
+            if (!src) return; 
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'canvas-item';
+            wrapper.dataset.id = item.id || "legacy";
+            wrapper.style.left = item.left;
+            wrapper.style.top = item.top;
+            wrapper.style.width = item.width;
+            wrapper.style.height = item.height;
+            wrapper.dataset.rotation = item.rotation || 0;
+            wrapper.style.transform = `rotate(${item.rotation || 0}deg)`;
+            // Restaurer l'ordre z-index si présent
+            if (typeof item.zIndex !== 'undefined') {
+                wrapper.style.zIndex = item.zIndex;
+            }
+            
+            // Ajout du <div class="canvas-item-name">
+            wrapper.innerHTML = `
+                <img src="${src}">
+                <div class="canvas-item-name">${nomItem}</div>
+                <div class="delete-handle"><span class="icon">close</span></div>
+                <div class="resize-handle"><span class="icon">open_in_full</span></div>
+                <div class="rotate-handle"><span class="icon">refresh</span></div>
+            `;
+            outfitCanvas.appendChild(wrapper);
+            rendreInteractif(wrapper);
+        });
+    } else {
+        canvasHint.style.display = 'block';
+    }
+}
+
+function genererGardeRobeCreateur() {
+    initialiserLogiqueArchitectureOutfits();
+    if (Object.keys(outfitsData).length > 0) {
+        renderOutfitSelector();
+        chargerTenueDuStock(currentOutfitId);
+    }
+
+    const tiroirsTargets = {
+        "Hauts": document.getElementById('list-outfit-hauts'),
+        "Bas": document.getElementById('list-outfit-bas'),
+        "Chaussures": document.getElementById('list-outfit-chaussures'),
+        "Autre": document.getElementById('list-outfit-autre')
+    };
+    
+    Object.values(tiroirsTargets).forEach(t => { if (t) t.innerHTML = ''; });
+    if (datasetVetements.length === 0) return;
+    
+    datasetVetements.forEach(v => {
+        const sourceImg = v.ImageURL || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=500&auto=format&fit=crop";
+        
+        // Création du Wrapper (Image + Nom)
+        const wrapper = document.createElement('div');
+        wrapper.className = 'outfit-item-wrapper';
+        wrapper.draggable = true; // C'est le conteneur entier qui se glisse
+        
+        wrapper.innerHTML = `
+            <img src="${sourceImg}" class="outfit-item-source" draggable="false">
+            <div class="outfit-item-name" title="${v.nom || 'Sans nom'}">${v.nom || 'Sans nom'}</div>
+        `;
+        
+        wrapper.addEventListener('dragstart', (e) => {
+            // ON TRANSMET L'ID DANS LE DRAG AU LIEU DE L'URL
+            e.dataTransfer.setData('text/plain', v.id);
+            e.dataTransfer.effectAllowed = "move";
+            const parentDrawer = wrapper.closest('.horizontal-drawer');
+            if (parentDrawer) setTimeout(() => parentDrawer.classList.add('collapsed'), 50);
+        });
+        
+        wrapper.addEventListener('click', () => {
+            canvasHint.style.display = 'none';
+            const rect = outfitCanvas.getBoundingClientRect();
+            ajouterElementSurCanvas(v.id, rect.width / 2, rect.height / 2); // Ajout par ID
+            outfitDirty = true;
+            updateSaveButtonState();
+            sauvegarderTenueActuelle();
+        });
+        
+        const subCat = v.catégorie && v.catégorie.length > 0 ? v.catégorie[0] : "";
+        let parentCat = trouverParentPourSousCategorie(subCat);
+        if (!parentCat || !tiroirsTargets[parentCat]) parentCat = "Autre";
+        
+        tiroirsTargets[parentCat].appendChild(wrapper);
+    });
+}
+
+function ajouterElementSurCanvas(idVetement, centerX, centerY) {
+    const vetement = datasetVetements.find(item => item.id === idVetement);
+    let src = "";
+    let finalId = idVetement;
+    let nomItem = "Sans nom";
+    
+    if (vetement) {
+        src = vetement.ImageURL || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=500&auto=format&fit=crop";
+        nomItem = vetement.nom || "Sans nom"; // Extraction du nom
+    } else if (idVetement.startsWith('http') || idVetement.startsWith('data:image')) {
+        src = idVetement;
+        finalId = "legacy";
+    } else {
+        return; 
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'canvas-item';
+    const size = 130;
+    wrapper.style.left = `${centerX - size/2}px`;
+    wrapper.style.top = `${centerY - size/2}px`;
+    wrapper.style.width = `${size}px`;
+    wrapper.style.height = `${size}px`;
+    wrapper.dataset.rotation = 0;
+    wrapper.dataset.id = finalId; 
+    
+    // Ajout du <div class="canvas-item-name">
+    wrapper.innerHTML = `
+        <img src="${src}">
+        <div class="canvas-item-name">${nomItem}</div>
+        <div class="delete-handle"><span class="icon">close</span></div>
+        <div class="resize-handle"><span class="icon">open_in_full</span></div>
+        <div class="rotate-handle"><span class="icon">refresh</span></div>
+    `;
+    outfitCanvas.appendChild(wrapper);
+    definirElementActif(wrapper);
+    rendreInteractif(wrapper);
+}
+
+function definirElementActif(item) {
+    if (activeCanvasItem) activeCanvasItem.classList.remove('active-item');
+    activeCanvasItem = item;
+    if (item) {
+        item.classList.add('active-item');
+        // Mettre au premier plan : récupérer le z-index max et ajouter 1
+        const allItems = document.querySelectorAll('#outfit-canvas .canvas-item');
+        let maxZIndex = 0;
+        allItems.forEach(el => {
+            const zIndex = parseInt(window.getComputedStyle(el).zIndex) || 0;
+            if (zIndex > maxZIndex) maxZIndex = zIndex;
+        });
+        item.style.zIndex = maxZIndex + 1;
+        // Marquer la tenue comme modifiée pour que l'utilisateur sauvegarde
+        outfitDirty = true;
+        updateSaveButtonState();
+    }
+}
+
+outfitCanvas.addEventListener('pointerdown', (e) => {
+    if (e.target === outfitCanvas || e.target.classList.contains('silhouette') || e.target.id === 'canvas-hint') {
+        definirElementActif(null);
+    }
+});
+
+function rendreInteractif(el) {
+    const resizeHandle = el.querySelector('.resize-handle');
+    const rotateHandle = el.querySelector('.rotate-handle');
+    const deleteHandle = el.querySelector('.delete-handle');
+
+    deleteHandle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); el.remove(); activeCanvasItem = null; outfitDirty = true; updateSaveButtonState(); sauvegarderTenueActuelle();
+    });
+
+    let isDragging = false, isResizing = false, isRotating = false;
+    let startX, startY, initialX, initialY, initialWidth, initialHeight, center;
+
+    el.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.resize-handle') || e.target.closest('.rotate-handle') || e.target.closest('.delete-handle')) return;
+        definirElementActif(el); isDragging = true;
+        startX = e.clientX; startY = e.clientY;
+        initialX = el.offsetLeft; initialY = el.offsetTop;
+        el.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+
+    resizeHandle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); definirElementActif(el); isResizing = true;
+        startX = e.clientX; initialWidth = el.offsetWidth; initialHeight = el.offsetHeight;
+        el.dataset.ratio = initialWidth / initialHeight;
+        resizeHandle.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+
+    rotateHandle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); definirElementActif(el); isRotating = true;
+        const canvasRect = outfitCanvas.getBoundingClientRect();
+        center = { x: canvasRect.left + el.offsetLeft + (el.offsetWidth / 2), y: canvasRect.top + el.offsetTop + (el.offsetHeight / 2) };
+        rotateHandle.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+
+    const handlePointerMove = (e) => {
+        if (isDragging) { el.style.left = `${initialX + (e.clientX - startX)}px`; el.style.top = `${initialY + (e.clientY - startY)}px`; }
+        if (isResizing) {
+            const newWidth = initialWidth + (e.clientX - startX);
+            if (newWidth > 40) { el.style.width = `${newWidth}px`; el.style.height = `${newWidth / parseFloat(el.dataset.ratio)}px`; }
+        }
+        if (isRotating) {
+            const angle = Math.atan2(e.clientY - center.y, e.clientX - center.x);
+            let degree = (angle * 180 / Math.PI) + 90;
+            el.style.transform = `rotate(${degree}deg)`; el.dataset.rotation = degree;
+        }
+    };
+
+    const handlePointerUp = () => { 
+        if (isDragging || isResizing || isRotating) {
+            outfitDirty = true;
+            updateSaveButtonState();
+            isDragging = false; isResizing = false; isRotating = false;
+            sauvegarderTenueActuelle();
+        }
+    };
+
+    el.addEventListener('pointermove', handlePointerMove);
+    resizeHandle.addEventListener('pointermove', handlePointerMove);
+    rotateHandle.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+    
+    el.addEventListener('pointerup', handlePointerUp); el.addEventListener('pointercancel', handlePointerUp);
+    resizeHandle.addEventListener('pointerup', handlePointerUp); rotateHandle.addEventListener('pointerup', handlePointerUp);
+}
