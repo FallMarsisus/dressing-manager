@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dressing Virtuel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <aside class="surface sidebar">
+            <div class="sidebar-header">
+                <h1>Dressing Virtuel</h1>
+                <button id="theme-toggle" class="btn-theme" title="Changer le thème">
+                    <span class="icon" id="theme-icon">dark_mode</span>
+                </button>
+            </div>
+            
+            <input type="text" id="search-input" class="search-box" placeholder="Rechercher une pièce...">
+
+            <div class="filter-scroll-area">
+                <div style="margin-bottom: 16px;">
+                    <button class="chip active" id="btn-tout-voir" data-filter="Tous" style="width: 100%; justify-content: center;">
+                        <span class="icon">dashboard</span> Tout voir
+                    </button>
+                </div>
+
+                <h2>Collections</h2>
+                <div class="layout-inline-flow" id="sidebar-pills-target"></div>
+
+                <h2>Tags</h2>
+                <div class="filter-group" id="filter-gommettes-target"></div>
+            </div>
+        </aside>
+
+        <main class="surface main-content">
+            <div class="main-header">
+                <h2>Vêtements</h2>
+                <span id="items-count" class="count-badge">0 pièce</span>
+            </div>
+            
+            <div class="list-scroll">
+                <div class="products-large-grid" id="list-target">
+                    <p class="status-text">Chargement...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <button id="fab-add" class="fab-btn" title="Ajouter une pièce">
+        <span class="icon">add</span>
+    </button>
+
+    <div id="modal-ajout" class="modal-overlay">
+        <form id="form-ajout" class="surface modal-box">
+            <div class="modal-header">
+                <h2 id="modal-title">Nouvelle Pièce</h2>
+                <span id="step-indicator" class="step-badge">Étape 1/3</span>
+            </div>
+            <input type="hidden" id="edit-id">
+
+            <div class="form-step active" data-step="1">
+                <span class="section-title-modal">Type de vêtement ?</span>
+                <div class="giant-icon-grid">
+                    <button type="button" class="btn-giant-choice" data-value="Hauts">
+                        <span class="icon text-icon">checkroom</span>
+                        <span class="label">Hauts</span>
+                    </button>
+                    <button type="button" class="btn-giant-choice" data-value="Bas">
+                        <span class="icon text-icon">layers</span>
+                        <span class="label">Bas</span>
+                    </button>
+                    <button type="button" class="btn-giant-choice" data-value="Chaussures">
+                        <span class="icon text-icon">ice_skating</span>
+                        <span class="label">Chaussures</span>
+                    </button>
+                    <button type="button" class="btn-giant-choice" data-value="Autre">
+                        <span class="icon text-icon">style</span>
+                        <span class="label">Autre</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-step" data-step="2">
+                <span class="section-title-modal">Sous-catégorie ?</span>
+                <div class="subcat-icon-grid"  id="form-sub-categories"></div>
+            </div>
+
+            <div class="form-step" data-step="3">
+                <span class="section-title-modal">Détails de la pièce</span>
+                <input type="text" id="nom" class="search-box" style="margin-top: 8px;" placeholder="Nom de la pièce (ex: Robe à fleurs)" required>
+                
+                <label class="file-input-wrapper">
+                    <span class="icon">add_photo_alternate</span>
+                    <span id="file-name-display-modal">Choisir une image</span>
+                    <input type="file" id="photo-upload" accept="image/*">
+                </label>
+
+                <span class="section-title">Associer des tags</span>
+                <div class="form-chip-group" id="form-gommettes"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="btn-etape-retour" class="btn-text" style="display: none;">Retour</button>
+                <div style="flex: 1;"></div>
+                <button type="button" id="btn-annuler" class="btn-text">Annuler</button>
+                <button type="button" id="btn-etape-suivant" class="btn-filled" style="display: none;">Continuer</button>
+                <button type="submit" id="btn-soumettre" class="btn-filled" style="display: none;">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
