@@ -1,8 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+// Importation des modules d'authentification
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 // ==========================================================================
-// 1. ÉTAT DE L'APPLICATION ET CONFIGURATION (TOUT EN HAUT)
+// 1. ÉTAT DE L'APPLICATION ET CONFIGURATION
 // ==========================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyDCZAmiumiuKAuIPbpBJJ7Fvj1D9AxEFzE",
@@ -15,6 +17,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 const structureCategories = {
     "Hauts": ["Hauts unicolores", "T-Shirts à dessin", "Tops de soirée", "Tops whimsy", "Sweats", "Pulls", "Chemises", "T-Shirt à manches longues"],
@@ -38,8 +42,10 @@ let datasetVetements = [];
 let filtreActif = "Tous";
 let familleFiltreActif = ""; 
 let saisieRecherche = "";
-let currentStep = 1; // Sécurisé contre les ReferenceError
+let currentStep = 1; 
 let parentChoisiFormulaire = "";
+let currentUser = null; // Stocke l'utilisateur connecté
+let unsubscribeVetements = null; // Permet de couper l'écouteur Firestore à la déconnexion
 
 // Capture des références DOM
 const themeBtn = document.getElementById('theme-toggle');
@@ -64,11 +70,78 @@ const fGoms = document.getElementById('form-gommettes');
 const photoInput = document.getElementById('photo-upload');
 const fileNameDisplayModal = document.getElementById('file-name-display-modal');
 
+// DOM Éléments d'Authentification
+const btnLogin = document.getElementById('btn-login');
+const btnLogout = document.getElementById('btn-logout');
+const userProfile = document.getElementById('user-profile');
+const userPhoto = document.getElementById('user-photo');
+const userName = document.getElementById('user-name');
+const fabAdd = document.getElementById('fab-add');
+
 // ==========================================
-// 2. LOGIQUE DES ÉTAPES DU STEPPER FORMULAIRE
+// 2. GESTION DE L'AUTHENTIFICATION (NOUVEAU)
+// ==========================================
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        // Mettre à jour l'interface utilisateur
+        btnLogin.style.display = 'none';
+        userProfile.style.display = 'flex';
+        userPhoto.src = user.photoURL || "";
+        userName.textContent = user.displayName || "Profil";
+        fabAdd.style.display = 'flex';
+
+        // Lancer l'écoute en temps réel de ses vêtements personnalisés
+        ecouterDressingUtilisateur(user.uid);
+    } else {
+        currentUser = null;
+        // Nettoyage de l'interface et déconnexion
+        btnLogin.style.display = 'flex';
+        userProfile.style.display = 'none';
+        fabAdd.style.display = 'none';
+        datasetVetements = [];
+        filtrerEtAfficher();
+        
+        if (unsubscribeVetements) {
+            unsubscribeVetements();
+            unsubscribeVetements = null;
+        }
+        listTarget.innerHTML = '<p class="status-text">Veuillez vous connecter pour voir votre dressing.</p>';
+        itemsCount.textContent = `0 pièce`;
+    }
+});
+
+btnLogin.addEventListener('click', () => {
+    signInWithPopup(auth, provider).catch(err => console.error("Erreur de connexion:", err));
+});
+
+btnLogout.addEventListener('click', () => {
+    signOut(auth).catch(err => console.error("Erreur de déconnexion:", err));
+});
+
+// Synchro BDD en temps réel isolée par utilisateur
+function ecouterDressingUtilisateur(uid) {
+    if (unsubscribeVetements) unsubscribeVetements();
+
+    const pathCollection = collection(db, "users", uid, "vetements");
+    const q = query(pathCollection, orderBy("CreatedAt", "desc"));
+
+    unsubscribeVetements = onSnapshot(q, (snapshot) => {
+        datasetVetements = [];
+        snapshot.forEach(doc => { 
+            const data = doc.data(); 
+            if (data.dummy !== true) datasetVetements.push({ id: doc.id, ...data }); 
+        });
+        filtrerEtAfficher();
+    }, (error) => {
+        console.error("Erreur de lecture Firestore (vérifie tes règles de sécurité) :", error);
+    });
+}
+
+// ==========================================
+// 3. LOGIQUE DES ÉTAPES DU STEPPER FORMULAIRE
 // ==========================================
 function updateStepperUI() {
-    // Gestion des affichages de blocs
     document.querySelectorAll('.form-step').forEach(step => step.classList.remove('active'));
     const targetStepBlock = document.querySelector(`.form-step[data-step="${currentStep}"]`);
     if (targetStepBlock) targetStepBlock.classList.add('active');
@@ -76,10 +149,7 @@ function updateStepperUI() {
     stepIndicator.textContent = `Étape ${currentStep}/3`;
     btnRetour.style.display = currentStep > 1 ? 'block' : 'none';
     
-    if (currentStep === 1) { 
-        btnSuivant.style.display = 'none'; 
-        btnSoumettre.style.display = 'none'; 
-    } else if (currentStep === 2) { 
+    if (currentStep === 1 || currentStep === 2) { 
         btnSuivant.style.display = 'none'; 
         btnSoumettre.style.display = 'none'; 
     } else if (currentStep === 3) { 
@@ -96,7 +166,6 @@ function genererSousCategoriesEtape2(parent, valeurSelectionnee = "") {
             const nomIcone = iconesCategories[child] || "apparel";
             fSubs.innerHTML += `<label class="subcat-square-label"><input type="radio" name="cats" value="${child}" ${isChecked} required><span class="icon">${nomIcone}</span><span class="label">${child}</span></label>`;
         });
-        // Ajouter un écouteur pour que le choix d'une sous-catégorie avance directement à l'étape 3
         fSubs.querySelectorAll('input[name="cats"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 if (e.target.checked) {
@@ -108,7 +177,6 @@ function genererSousCategoriesEtape2(parent, valeurSelectionnee = "") {
     }
 }
 
-// Clics Étape 1 : Choix Parent
 giantChoices.forEach(btn => {
     btn.addEventListener('click', () => {
         giantChoices.forEach(b => b.classList.remove('selected'));
@@ -120,7 +188,6 @@ giantChoices.forEach(btn => {
     });
 });
 
-// Écouteurs d'étapes standard
 btnSuivant.addEventListener('click', () => {
     if (currentStep === 2) {
         if (!document.querySelector('input[name="cats"]:checked')) { alert("Sélectionne un type."); return; }
@@ -131,7 +198,7 @@ btnSuivant.addEventListener('click', () => {
 btnRetour.addEventListener('click', () => { if (currentStep > 1) { currentStep--; updateStepperUI(); } });
 
 // ==========================================
-// 3. GENERATION DE L'INTERFACE (SIDEBAR)
+// 4. GENERATION DE L'INTERFACE (SIDEBAR)
 // ==========================================
 function genererPillsSidebar() {
     inlineFlowContainer.innerHTML = "";
@@ -147,12 +214,11 @@ function genererPillsSidebar() {
 }
 genererPillsSidebar();
 
-// Injection des gommettes formulaire (Etape 3)
 fGoms.innerHTML = "";
 listeGommettes.forEach(g => fGoms.innerHTML += `<label class="form-chip-label"><input type="checkbox" name="goms" value="${g}"> ${g}</label>`);
 
 // ==========================================
-// 4. MOTEUR DE FILTRAGE ET FILTERS LISTENERS
+// 5. MOTEUR DE FILTRAGE ET FILTERS LISTENERS
 // ==========================================
 inlineFlowContainer.addEventListener('click', (e) => {
     const parentBtn = e.target.closest('.parent-pill-btn');
@@ -217,7 +283,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ==========================================
-// 5. ENREGISTREMENTS, COMPRESSION & SYNC BDD
+// 6. ENREGISTREMENTS, COMPRESSION & ACTIONS CRUD
 // ==========================================
 function compresserVersBase64(file) {
     return new Promise((resolve) => {
@@ -238,6 +304,11 @@ function compresserVersBase64(file) {
 
 function filtrerEtAfficher() {
     listTarget.innerHTML = "";
+    if (!currentUser) {
+        listTarget.innerHTML = '<p class="status-text">Veuillez vous connecter pour voir votre dressing.</p>';
+        return;
+    }
+
     const resultat = datasetVetements.filter(v => {
         const matchTexte = v.nom.toLowerCase().includes(saisieRecherche.toLowerCase());
         let matchBouton = false;
@@ -268,14 +339,8 @@ function filtrerEtAfficher() {
 
 searchInput.addEventListener('input', (e) => { saisieRecherche = e.target.value; filtrerEtAfficher(); });
 
-onSnapshot(query(collection(db, "vetements"), orderBy("CreatedAt", "desc")), (snapshot) => {
-    datasetVetements = [];
-    snapshot.forEach(doc => { const data = doc.data(); if (data.dummy !== true) datasetVetements.push({ id: doc.id, ...data }); });
-    filtrerEtAfficher();
-});
-
-// Bouton FAB d'Ajout Clean
-document.getElementById('fab-add').addEventListener('click', () => {
+// Déclenchement de la modale d'ajout
+fabAdd.addEventListener('click', () => {
     modalTitle.textContent = "Nouvelle Pièce"; document.getElementById('edit-id').value = "";
     form.reset(); giantChoices.forEach(b => b.classList.remove('selected'));
     currentStep = 1; 
@@ -310,10 +375,17 @@ function chargerDonneesDansModale(vetement) {
     modal.style.display = 'flex';
 }
 
-async function supprimerVetement(id) { if (confirm("Supprimer cette pièce ?")) { await deleteDoc(doc(db, "vetements", id)); } }
+async function supprimerVetement(id) { 
+    if (!currentUser) return;
+    if (confirm("Supprimer cette pièce ?")) { 
+        await deleteDoc(doc(db, "users", currentUser.uid, "vetements", id)); 
+    } 
+}
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!currentUser) return;
+
     const btnSubmit = document.getElementById('btn-soumettre');
     const idEdition = document.getElementById('edit-id').value;
     btnSubmit.disabled = true;
@@ -330,12 +402,25 @@ form.addEventListener('submit', async (e) => {
         };
         if (file) payload.ImageURL = base64Data;
 
-        if (idEdition) { await updateDoc(doc(db, "vetements", idEdition), payload); } 
-        else { payload.ImageURL = base64Data || ""; payload.CreatedAt = new Date(); payload.dummy = false; await addDoc(collection(db, "vetements"), payload); }
+        const userVetementsRef = collection(db, "users", currentUser.uid, "vetements");
+
+        if (idEdition) { 
+            await updateDoc(doc(db, "users", currentUser.uid, "vetements", idEdition), payload); 
+        } else { 
+            payload.ImageURL = base64Data || ""; 
+            payload.CreatedAt = new Date(); 
+            payload.dummy = false; 
+            await addDoc(userVetementsRef, payload); 
+        }
         form.reset(); modal.style.display = 'none';
-    } catch (err) { console.error(err); } finally { btnSubmit.disabled = false; }
+    } catch (err) { 
+        console.error("Erreur lors de l'enregistrement:", err); 
+    } finally { 
+        btnSubmit.disabled = false; 
+    }
 });
 
+// Toggle Thème Clair/Sombre
 themeBtn.addEventListener('click', () => {
     if (document.body.getAttribute('data-theme') === 'dark') { document.body.removeAttribute('data-theme'); themeIcon.innerText = 'dark_mode'; } 
     else { document.body.setAttribute('data-theme', 'dark'); themeIcon.innerText = 'light_mode'; }

@@ -1,28 +1,51 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dressing Virtuel</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <div class="app-layout">
-        
+
         <aside class="surface sidebar">
             <div class="sidebar-header">
                 <h1>Dressing Virtuel</h1>
                 <button id="theme-toggle" class="btn-theme" title="Changer le thème">
                     <span class="icon" id="theme-icon">dark_mode</span>
                 </button>
+
+                <div id="auth-zone" style="margin: 16px 8px;">
+                    <button id="btn-login" class="chip"
+                        style="width: 100%; justify-content: center; background: var(--md-primary); color: var(--md-on-primary); font-weight: 500;">
+                        <span class="icon">login</span> Se connecter
+                    </button>
+
+                    <div id="user-profile"
+                        style="display: none; align-items: center; justify-content: space-between; background: var(--md-sub-grised); padding: 8px 12px; border-radius: 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <img id="user-photo" src="" alt="Avatar"
+                                style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                            <span id="user-name"
+                                style="font-size: 14px; font-weight: 500; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">Utilisateur</span>
+                        </div>
+                        <button id="btn-logout" class="btn-theme" title="Se déconnecter" type="button">
+                            <span class="icon">logout</span>
+                        </button>
+                    </div>
+                </div>
             </div>
-            
+
             <input type="text" id="search-input" class="search-box" placeholder="Rechercher une pièce...">
 
             <div class="filter-scroll-area">
                 <div style="margin-bottom: 16px;">
-                    <button class="chip active" id="btn-tout-voir" data-filter="Tous" style="width: 100%; justify-content: center;">
+                    <button class="chip active" id="btn-tout-voir" data-filter="Tous"
+                        style="width: 100%; justify-content: center;">
                         <span class="icon">dashboard</span> Tout voir
                     </button>
                 </div>
@@ -40,7 +63,7 @@
                 <h2>Vêtements</h2>
                 <span id="items-count" class="count-badge">0 pièce</span>
             </div>
-            
+
             <div class="list-scroll">
                 <div class="products-large-grid" id="list-target">
                     <p class="status-text">Chargement...</p>
@@ -85,13 +108,14 @@
 
             <div class="form-step" data-step="2">
                 <span class="section-title-modal">Sous-catégorie ?</span>
-                <div class="subcat-icon-grid"  id="form-sub-categories"></div>
+                <div class="subcat-icon-grid" id="form-sub-categories"></div>
             </div>
 
             <div class="form-step" data-step="3">
                 <span class="section-title-modal">Détails de la pièce</span>
-                <input type="text" id="nom" class="search-box" style="margin-top: 8px;" placeholder="Nom de la pièce (ex: Robe à fleurs)" required>
-                
+                <input type="text" id="nom" class="search-box" style="margin-top: 8px;"
+                    placeholder="Nom de la pièce (ex: Robe à fleurs)" required>
+
                 <label class="file-input-wrapper">
                     <span class="icon">add_photo_alternate</span>
                     <span id="file-name-display-modal">Choisir une image</span>
@@ -106,7 +130,8 @@
                 <button type="button" id="btn-etape-retour" class="btn-text" style="display: none;">Retour</button>
                 <div style="flex: 1;"></div>
                 <button type="button" id="btn-annuler" class="btn-text">Annuler</button>
-                <button type="button" id="btn-etape-suivant" class="btn-filled" style="display: none;">Continuer</button>
+                <button type="button" id="btn-etape-suivant" class="btn-filled"
+                    style="display: none;">Continuer</button>
                 <button type="submit" id="btn-soumettre" class="btn-filled" style="display: none;">Enregistrer</button>
             </div>
         </form>
@@ -114,4 +139,5 @@
 
     <script type="module" src="script.js"></script>
 </body>
+
 </html>
