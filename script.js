@@ -24,7 +24,7 @@ const structureCategories = {
     "Hauts": ["Hauts unicolores", "T-Shirts à dessin", "Tops de soirée", "Tops whimsy", "Sweats", "Pulls", "Chemises", "T-Shirt à manches longues"],
     "Bas": ["Jupes Longues", "Jupes Courtes", "Shorts", "Jeans", "Pantalons"],
     "Chaussures": ["Bottes", "Docs", "Sandales", "Baskets"],
-    "Autre": ["Sport", "Manteaux", "Vestes"]
+    "Autre": ["Sport", "Manteaux", "Vestes", "Sacs"]
 };
 
 const iconesCategories = {
@@ -32,7 +32,7 @@ const iconesCategories = {
     "Sweats": "apparel", "Pulls": "chair_fireplace", "Chemises": "dry_cleaning", "T-Shirt à manches longues": "apparel",
     "Jupes Longues": "arrow_cool_down", "Jupes Courtes": "arrow_drop_down", "Shorts": "wb_sunny", "Jeans": "grid_on", "Pantalons": "crop_portrait",
     "Bottes": "snowshoeing", "Docs": "footprint", "Sandales": "beach_access", "Baskets": "directions_run",
-    "Sport": "fitness_center", "Manteaux": "ac_unit", "Vestes": "ac_unit"
+    "Sport": "fitness_center", "Manteaux": "ac_unit", "Vestes": "ac_unit", "Sacs": "shopping_bag"
 };
 
 const listeGommettes = ["Poubelle", "Favori", "A mettre", "Trop grand", "Trop petit", "Hiver", "Ete", "Mixte", "Punaise"];
