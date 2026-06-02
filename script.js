@@ -80,7 +80,44 @@ const userPhoto = document.getElementById('user-photo');
 const userName = document.getElementById('user-name');
 const fabAdd = document.getElementById('fab-add');
 const installBtn = document.getElementById('install-btn');
+const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
+const mobileSidebarToggleIcon = document.getElementById('mobile-sidebar-toggle-icon');
+const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 let deferredPrompt = null;
+
+function isMobileLayout() {
+    return window.matchMedia('(max-width: 900px)').matches;
+}
+
+function setSidebarOpen(isOpen) {
+    if (!isMobileLayout()) return;
+    document.body.classList.toggle('sidebar-open', isOpen);
+    mobileSidebarToggleIcon.innerText = isOpen ? 'close' : 'menu';
+    mobileSidebarToggle.setAttribute('aria-label', isOpen ? 'Fermer le menu' : 'Ouvrir le menu');
+}
+
+function toggleSidebar() {
+    setSidebarOpen(!document.body.classList.contains('sidebar-open'));
+}
+
+function closeSidebarOnMobile() {
+    setSidebarOpen(false);
+}
+
+function syncSidebarStateToViewport() {
+    if (!isMobileLayout()) {
+        document.body.classList.remove('sidebar-open');
+        mobileSidebarToggleIcon.innerText = 'menu';
+        mobileSidebarToggle.setAttribute('aria-label', 'Ouvrir le menu');
+    }
+}
+
+mobileSidebarToggle.addEventListener('click', toggleSidebar);
+sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
+window.addEventListener('resize', syncSidebarStateToViewport);
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setSidebarOpen(false);
+});
 
 // ==========================================
 // 2. GESTION DE L'AUTHENTIFICATION (NOUVEAU)
@@ -247,6 +284,7 @@ inlineFlowContainer.addEventListener('click', (e) => {
         filtreActif = "Tous"; familleFiltreActif = "";
         resetCreationFilterPrefill();
         filtrerEtAfficher();
+        closeSidebarOnMobile();
         return;
     }
 
@@ -268,6 +306,7 @@ inlineFlowContainer.addEventListener('click', (e) => {
         elementPrecedent = cBtn;
     });
     filtrerEtAfficher();
+    closeSidebarOnMobile();
 });
 
 document.addEventListener('click', (e) => {
@@ -282,6 +321,7 @@ document.addEventListener('click', (e) => {
         filtreActif = "Tous"; familleFiltreActif = "";
         resetCreationFilterPrefill();
         filtrerEtAfficher();
+        closeSidebarOnMobile();
     }
     if (childTrigger) {
         document.querySelectorAll('.sidebar-child-trigger').forEach(b => b.classList.remove('active'));
@@ -291,6 +331,7 @@ document.addEventListener('click', (e) => {
         prefillParentCategory = parentForChild;
         prefillSubCategory = filtreActif;
         filtrerEtAfficher();
+        closeSidebarOnMobile();
     }
     if (gommetteTrigger) {
         document.querySelectorAll('.sidebar .chip, #btn-tout-voir').forEach(b => b.classList.remove('active'));
@@ -300,6 +341,7 @@ document.addEventListener('click', (e) => {
         familleFiltreActif = "";
         resetCreationFilterPrefill();
         filtrerEtAfficher();
+        closeSidebarOnMobile();
     }
 });
 
@@ -382,6 +424,7 @@ searchInput.addEventListener('input', (e) => { saisieRecherche = e.target.value;
 
 // Déclenchement de la modale d'ajout
 fabAdd.addEventListener('click', () => {
+    closeSidebarOnMobile();
     modalTitle.textContent = "Nouvelle Pièce"; document.getElementById('edit-id').value = "";
     form.reset(); giantChoices.forEach(b => b.classList.remove('selected'));
     parentChoisiFormulaire = "";
@@ -411,6 +454,7 @@ modal.addEventListener('click', (e) => { if(e.target === modal) modal.style.disp
 photoInput.addEventListener('change', (e) => { if (e.target.files[0]) fileNameDisplayModal.textContent = e.target.files[0].name; });
 
 function chargerDonneesDansModale(vetement) {
+    closeSidebarOnMobile();
     modalTitle.textContent = "Éditer la pièce"; form.reset();
     document.getElementById('edit-id').value = vetement.id;
     document.getElementById('nom').value = vetement.nom || ""; 

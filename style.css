@@ -283,6 +283,45 @@ html, body {
 .fab-btn { position: fixed; bottom: 32px; right: 32px; width: 64px; height: 64px; background-color: var(--md-primary-container); color: var(--md-on-primary-container); border: none; border-radius: 24px; box-shadow: 0 6px 16px rgba(0,0,0,0.12); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; transition: transform 0.2s; }
 .fab-btn:hover { transform: scale(1.05); }
 
+.mobile-sidebar-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 18px;
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 95;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.mobile-sidebar-toggle .icon {
+    font-size: 26px;
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 12, 22, 0.32);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 88;
+}
+
+body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 12, 22, 0.3); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(8px); }
 .modal-box { width: 100%; max-width: 480px; min-height: 400px; margin: 16px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
@@ -321,22 +360,34 @@ html, body {
         padding: 12px;
         min-height: 100vh;
         height: auto;
-        padding-bottom: calc(42vh + 28px);
+        padding-bottom: 16px;
     }
 
     .sidebar {
         position: fixed;
+        top: 12px;
         left: 12px;
-        right: 12px;
         bottom: 12px;
+        width: min(88vw, 360px);
         z-index: 90;
         padding: 16px 14px 18px;
         border-radius: 24px;
-        max-height: 42vh;
+        height: calc(100vh - 24px);
+        max-height: none;
         overflow: hidden;
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
         backdrop-filter: blur(26px) saturate(150%);
         -webkit-backdrop-filter: blur(26px) saturate(150%);
+        transform: translateX(calc(-100% - 24px));
+        transition: transform 0.25s ease;
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0);
+    }
+
+    .mobile-sidebar-toggle {
+        display: inline-flex;
     }
 
     .sidebar-header {
@@ -364,7 +415,7 @@ html, body {
         overflow-y: auto;
         padding-right: 6px;
         padding-bottom: 12px;
-        max-height: calc(42vh - 160px);
+        max-height: calc(100vh - 260px);
     }
 
     .sidebar-bottom-actions {
@@ -374,12 +425,12 @@ html, body {
     }
 
     .main-content {
-        padding: 8px 0 0;
+        padding: 64px 0 0;
         min-height: 100vh;
     }
 
     .app-layout > .surface:nth-child(2) {
-        padding: 8px 0 0;
+        padding: 64px 0 0;
     }
 
     .main-header {
@@ -413,6 +464,10 @@ html, body {
         width: 60px;
         height: 60px;
         z-index: 95;
+    }
+
+    body.sidebar-open {
+        overflow: hidden;
     }
 
     .modal-box {
