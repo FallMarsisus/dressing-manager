@@ -414,11 +414,11 @@ body.sidebar-open .sidebar-backdrop {
         transform: translateX(-50%);
     }
 
-    /* 2. NETTOYAGE ABSOLU DU HEADER : C'est lui qui décalait tout ! */
+    /* 2. NETTOYAGE ABSOLU DU HEADER */
     .sidebar-header {
-        display: block !important; /* Écrase le flexbox du bureau */
+        display: block !important; 
         width: 100% !important;
-        padding: 0 !important; /* Supprime le "padding: 0 8px" du bureau */
+        padding: 0 !important; 
         margin: 0 !important;
         box-sizing: border-box !important;
     }
@@ -460,12 +460,12 @@ body.sidebar-open .sidebar-backdrop {
         font-size: 22px !important;
     }
 
-    /* 4. ZONE DE PROFIL : Largeur à 100% stricte */
+    /* 4. ZONE DE PROFIL : Largeur à 100% stricte, l'affichage est géré par JS */
     #auth-zone {
         display: block !important;
         width: 100% !important;
         padding: 0 !important;
-        margin: 0 0 20px 0 !important; /* Écrase le style inline "margin: 16px 8px;" */
+        margin: 0 0 20px 0 !important; 
         box-sizing: border-box !important;
     }
 
@@ -475,17 +475,17 @@ body.sidebar-open .sidebar-backdrop {
         font-size: 16px;
         border-radius: 14px;
         box-sizing: border-box !important;
-        display: flex !important;
+        /* display retiré pour laisser le JS faire son travail */
         justify-content: center !important;
         margin: 0 !important;
     }
 
     #user-profile {
-        display: flex !important; /* Conserve l'agencement interne du profil */
-        width: 100% !important; /* Force à prendre toute la place disponible de la sidebar */
+        /* display retiré pour laisser le JS faire son travail */
+        width: 100% !important; 
         box-sizing: border-box !important;
-        padding: 12px 16px !important; /* Padding interne homogène */
-        margin: 0 !important; /* Aucune marge extérieure fantôme */
+        padding: 12px 16px !important; 
+        margin: 0 !important; 
         justify-content: space-between !important;
         align-items: center !important;
     }
@@ -511,6 +511,7 @@ body.sidebar-open .sidebar-backdrop {
         flex-shrink: 0;
     }
 
+    /* 5. Ajustement de la grille et des entrées */
     .search-box {
         margin: 12px 0 !important;
         width: 100% !important;
@@ -525,6 +526,7 @@ body.sidebar-open .sidebar-backdrop {
         box-sizing: border-box !important;
     }
 
+    /* 6. REPOSITIONNEMENT DES BOUTONS THÈME & TÉLÉCHARGEMENT */
     .sidebar-bottom-actions {
         position: absolute !important;
         left: 16px !important;
@@ -604,6 +606,7 @@ body.sidebar-open .sidebar-backdrop {
         gap: 10px;
     }
 
+    /* 8. Désactivation complète du FAB '+' sur mobile */
     .fab-btn {
         display: none !important;
     }
