@@ -287,6 +287,7 @@ html, body {
     position: fixed;
     top: 16px;
     left: 16px;
+    transform: none;
     width: 52px;
     height: 52px;
     border: none;
@@ -303,6 +304,26 @@ html, body {
 
 .mobile-sidebar-toggle .icon {
     font-size: 26px;
+}
+
+.mobile-sidebar-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 14px;
+    background: var(--md-sub-grised);
+    color: var(--md-on-surface);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.mobile-sidebar-close .icon {
+    font-size: 24px;
 }
 
 .sidebar-backdrop {
@@ -344,7 +365,7 @@ body.sidebar-open .sidebar-backdrop {
 * { scrollbar-width: thin; scrollbar-color: rgba(103, 80, 164, 0.2) transparent; }
 
 /* ==========================================================================
-   Responsive mobile : la sidebar devient un toast fixe en bas
+   Responsive mobile : Sidebar épurée, Profil haut & Actions fixes à gauche
    ========================================================================== */
 @media (max-width: 900px) {
     html, body {
@@ -363,78 +384,203 @@ body.sidebar-open .sidebar-backdrop {
         padding-bottom: 16px;
     }
 
+    /* 1. Sidebar mobile : Centrage absolu et marges parfaitement égales */
     .sidebar {
         position: fixed;
         top: 12px;
-        left: 12px;
         bottom: 12px;
-        width: min(88vw, 360px);
+        width: calc(100vw - 24px) !important; 
+        max-width: 380px !important; 
+        left: -120%; 
         z-index: 90;
-        padding: 16px 14px 18px;
+        
+        /* Padding forcé symétrique à 16px à gauche et à droite */
+        padding: 86px 16px 90px 16px !important; 
         border-radius: 24px;
         height: calc(100vh - 24px);
         max-height: none;
         overflow: hidden;
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
         backdrop-filter: blur(26px) saturate(150%);
         -webkit-backdrop-filter: blur(26px) saturate(150%);
-        transform: translateX(calc(-100% - 24px));
-        transition: transform 0.25s ease;
+        
+        transform: translateX(0); 
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-sizing: border-box !important;
     }
 
     body.sidebar-open .sidebar {
-        transform: translateX(0);
+        left: 50%;
+        transform: translateX(-50%);
     }
 
-    .mobile-sidebar-toggle {
-        display: inline-flex;
-    }
-
+    /* 2. NETTOYAGE ABSOLU DU HEADER : C'est lui qui décalait tout ! */
     .sidebar-header {
-        margin-bottom: 10px;
+        display: block !important; /* Écrase le flexbox du bureau */
+        width: 100% !important;
+        padding: 0 !important; /* Supprime le "padding: 0 8px" du bureau */
+        margin: 0 !important;
+        box-sizing: border-box !important;
     }
 
     .sidebar h1 {
-        font-size: 18px;
+        display: none !important;
     }
 
+    /* 3. GESTION DU BOUTON UNIQUE (Croix) */
+    .mobile-sidebar-toggle {
+        display: inline-flex;
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 85; 
+        transition: transform 0.2s, background-color 0.3s, left 0.3s, top 0.3s;
+    }
+
+    body.sidebar-open .mobile-sidebar-toggle {
+        position: fixed; 
+        z-index: 99; 
+        top: 28px;
+        left: 50%;
+        transform: translateX(-50%) !important; 
+        
+        background: rgba(255, 255, 255, 0.15) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        color: var(--md-on-surface);
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        
+        width: 64px !important;
+        height: 42px !important;
+        border-radius: 20px !important; 
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    body.sidebar-open .mobile-sidebar-toggle span {
+        font-size: 22px !important;
+    }
+
+    /* 4. ZONE DE PROFIL : Largeur à 100% stricte */
     #auth-zone {
-        margin: 10px 8px 0 !important;
+        display: block !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 0 20px 0 !important; /* Écrase le style inline "margin: 16px 8px;" */
+        box-sizing: border-box !important;
     }
 
-    #auth-zone > button,
+    #auth-zone > button {
+        width: 100% !important;
+        padding: 14px 20px !important;
+        font-size: 16px;
+        border-radius: 14px;
+        box-sizing: border-box !important;
+        display: flex !important;
+        justify-content: center !important;
+        margin: 0 !important;
+    }
+
     #user-profile {
-        width: 100%;
+        display: flex !important; /* Conserve l'agencement interne du profil */
+        width: 100% !important; /* Force à prendre toute la place disponible de la sidebar */
+        box-sizing: border-box !important;
+        padding: 12px 16px !important; /* Padding interne homogène */
+        margin: 0 !important; /* Aucune marge extérieure fantôme */
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+
+    #user-photo {
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 50%;
+        flex-shrink: 0; 
+    }
+
+    #user-name {
+        font-size: 16px !important;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #btn-logout {
+        margin: 0 !important;
+        padding: 8px !important;
+        flex-shrink: 0;
     }
 
     .search-box {
-        margin: 12px 0 10px;
+        margin: 12px 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important; 
     }
 
     .filter-scroll-area {
         overflow-y: auto;
-        padding-right: 6px;
-        padding-bottom: 12px;
-        max-height: calc(100vh - 260px);
+        padding-right: 4px;
+        width: 100% !important;
+        max-height: calc(100vh - 290px);
+        box-sizing: border-box !important;
     }
 
     .sidebar-bottom-actions {
-        position: static;
-        margin-top: 12px;
-        justify-content: flex-end;
+        position: absolute !important;
+        left: 16px !important;
+        bottom: 16px !important;
+        z-index: 95;
+        margin: 0 !important;
+        display: flex !important;
+        gap: 12px !important;
+        flex-direction: row !important;
+        background: transparent !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 
+    .sidebar-bottom-actions .btn-theme,
+    .sidebar-bottom-actions #install-btn {
+        background: var(--md-surface-card) !important;
+        color: var(--md-on-surface) !important;
+        width: 50px !important;
+        height: 50px !important;
+        border: 1px solid var(--md-outline-variant) !important;
+        border-radius: 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
+        transition: transform 0.2s, background-color 0.3s;
+        cursor: pointer;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .sidebar-bottom-actions .btn-theme span,
+    .sidebar-bottom-actions #install-btn span {
+        font-size: 24px !important;
+        margin: 0 !important;
+    }
+
+    .sidebar-bottom-actions .btn-theme:hover,
+    .sidebar-bottom-actions #install-btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* 7. Contenu principal (Lookbook) */
     .main-content {
-        padding: 64px 0 0;
+        padding: 64px 0 0 !important;
         min-height: 100vh;
     }
 
     .app-layout > .surface:nth-child(2) {
-        padding: 64px 0 0;
+        padding: 64px 0 0 !important;
     }
 
     .main-header {
-        margin: 0 8px 16px;
+        margin: 0 8px 16px !important;
         gap: 12px;
     }
 
@@ -459,11 +605,7 @@ body.sidebar-open .sidebar-backdrop {
     }
 
     .fab-btn {
-        bottom: 16px;
-        right: 16px;
-        width: 60px;
-        height: 60px;
-        z-index: 95;
+        display: none !important;
     }
 
     body.sidebar-open {
