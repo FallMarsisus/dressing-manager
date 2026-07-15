@@ -9,7 +9,7 @@
   "theme_color": "#6750A4",
   "icons": [
     {
-      "src": "icons/icon.png",
+      "src": "icons/logo_dressing_manager.png",
       "sizes": "512x512",
       "type": "image/png"
     }
